@@ -47,10 +47,74 @@ static void replace_newline(unsigned size, char *msg)
         if (msg[i] == '\n') msg[i] = '$';
     }
 }
+
+static bool is_blank_space(char c) { return c == ' ' || c == '\n'; }
+
+static char const *skip_blank_spaces(char const *start, char const *end)
+{
+    while (start < end && is_blank_space(*start))
+        ++start;
+    return start;
+}
+
+static char *shrink_line(char const *start, char *end)
+{
+    while (start < end && *(end - 1) == '\n')
+        --end;
+    *end = 0;
+    return end;
+}
+
+enum token
+{
+    TOK_SEND,
+    TOK_STRING,
+    TOK_EOF,
+};
+
+static enum token next_token(char const **start, char const *end,
+                             unsigned *size)
+{
+    *start = skip_blank_spaces(*start, end);
+    char const *ptr = *start;
+
+    while (ptr < end && !is_blank_space(*ptr))
+        ++ptr;
+
+    *size = (unsigned)(ptr - *start);
+
+    if (*size == 4 && strncmp(*start, "send", *size) == 0) return TOK_SEND;
+    if (*start == end) return TOK_EOF;
+    return TOK_STRING;
+}
+
 static void process_input(unsigned size, char *msg)
 {
-    replace_newline(size, msg);
-    echo("input[%s]", msg);
+    char const *end = shrink_line(msg, msg + size);
+    char const *pos = msg;
+
+    echo("input[%s]", pos);
+
+    unsigned sz = 0;
+    enum token tok = next_token(&pos, end, &sz);
+
+    if (tok != TOK_SEND)
+    {
+        echo("expected TOK_SEND");
+        goto cleanup;
+    }
+
+    pos += sz; 
+    tok = next_token(&pos, end, &sz);
+    if (tok != TOK_STRING)
+    {
+        echo("expected TOK_STRING");
+        goto cleanup;
+    }
+
+    echo("Send [%.*s]", sz, pos);
+
+cleanup:
     reset_line(&term.line);
 }
 
