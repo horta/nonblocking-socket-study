@@ -6,6 +6,6 @@ struct ev_loop;
 void global_init(void);
 struct ev_loop *global_loop(void);
 double global_now(void);
+void global_sigint(void);
 
 #endif
-

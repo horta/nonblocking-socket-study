@@ -67,7 +67,10 @@ static char *shrink_line(char const *start, char *end)
 
 enum token
 {
+    TOK_CONNECT,
+    TOK_DISCONNECT,
     TOK_SEND,
+    TOK_QUIT,
     TOK_STRING,
     TOK_EOF,
 };
@@ -83,7 +86,20 @@ static enum token next_token(char const **start, char const *end,
 
     *size = (unsigned)(ptr - *start);
 
+    if (*size == 1 && strncmp(*start, "s", *size) == 0) return TOK_SEND;
     if (*size == 4 && strncmp(*start, "send", *size) == 0) return TOK_SEND;
+
+    if (*size == 1 && strncmp(*start, "c", *size) == 0) return TOK_CONNECT;
+    if (*size == 7 && strncmp(*start, "connect", *size) == 0)
+        return TOK_CONNECT;
+
+    if (*size == 1 && strncmp(*start, "d", *size) == 0) return TOK_DISCONNECT;
+    if (*size == 10 && strncmp(*start, "disconnect", *size) == 0)
+        return TOK_DISCONNECT;
+
+    if (*size == 1 && strncmp(*start, "q", *size) == 0) return TOK_QUIT;
+    if (*size == 4 && strncmp(*start, "quit", *size) == 0) return TOK_QUIT;
+
     if (*start == end) return TOK_EOF;
     return TOK_STRING;
 }
@@ -93,26 +109,49 @@ static void process_input(unsigned size, char *msg)
     char const *end = shrink_line(msg, msg + size);
     char const *pos = msg;
 
-    echo("input[%s]", pos);
-
     unsigned sz = 0;
     enum token tok = next_token(&pos, end, &sz);
 
-    if (tok != TOK_SEND)
+    if (tok == TOK_SEND)
     {
-        echo("expected TOK_SEND");
+        pos += sz;
+        tok = next_token(&pos, end, &sz);
+        if (tok != TOK_STRING)
+        {
+            echo("expected TOK_STRING");
+            goto cleanup;
+        }
+
+        echo("Send [%.*s]", sz, pos);
         goto cleanup;
     }
 
-    pos += sz; 
-    tok = next_token(&pos, end, &sz);
-    if (tok != TOK_STRING)
+    if (tok == TOK_CONNECT)
     {
-        echo("expected TOK_STRING");
+        pos += sz;
+        tok = next_token(&pos, end, &sz);
+        if (tok != TOK_STRING)
+        {
+            echo("expected TOK_STRING");
+            goto cleanup;
+        }
+
+        echo("Connecting to %.*s...", sz, pos);
         goto cleanup;
     }
 
-    echo("Send [%.*s]", sz, pos);
+    if (tok == TOK_DISCONNECT)
+    {
+        echo("Disconnecting...", sz, pos);
+        goto cleanup;
+    }
+
+    if (tok == TOK_QUIT)
+    {
+        echo("Quitting...", sz, pos);
+        global_sigint();
+        goto cleanup;
+    }
 
 cleanup:
     reset_line(&term.line);
