@@ -1,8 +1,9 @@
 #include "conn.h"
 #include "client_config.h"
-#include "report.h"
 #include <errno.h>
+#include <ev.h>
 #include <fcntl.h>
+#include <stdio.h>
 
 static inline bool set_socket_nonblocking(int sockfd)
 {
@@ -26,34 +27,34 @@ bool conn_init(struct conn *conn)
 {
     conn->state = CONN_INIT;
 
-    if ((addr_setup(&conn->addr, IPV4, "127.0.0.1", PORT)))
+    if ((addr_setup(&conn->addr, IPV4, "100.118.66.95", PORT)))
     {
-        echo("failed to setup addr");
+        puts("failed to setup addr");
         return false;
     }
 
     int const sockfd = socket(conn->addr.sin_family, SOCK_STREAM, IPPROTO_TCP);
     if (sockfd == -1)
     {
-        echo("failed to create socket");
+        puts("failed to create socket");
         return false;
     }
 
     if (!set_socket_reuseaddr(sockfd))
     {
-        echo("failed to set socket option");
+        puts("failed to set socket option");
         goto cleanup;
     }
 
     if (!set_socket_nonblocking(sockfd))
     {
-        echo("failed to set socket nonblocking");
+        puts("failed to set socket nonblocking");
         goto cleanup;
     }
 
     if (!set_socket_linger(sockfd, 0))
     {
-        echo("failed to set socket option");
+        puts("failed to set socket option");
         goto cleanup;
     }
 
@@ -61,30 +62,30 @@ bool conn_init(struct conn *conn)
     return true;
 
 cleanup:
-    if (close(sockfd) == -1) echo_errno("failed to close socket");
+    if (close(sockfd) == -1) perror("failed to close socket");
     return false;
 }
 
-bool conn_start_connecting(struct conn *conn)
+bool conn_connect(struct conn *conn)
 {
     conn->state = CONN_PEND;
-    echo("connecting to server...");
+    printf("connecting to server...\n");
 
     socklen_t size = sizeof(conn->addr);
     if (connect(conn->sockfd, (struct sockaddr *)&conn->addr, size) != -1)
     {
-        echo("DEBUG: connected fast");
+        puts("DEBUG: connected fast");
         return true;
     }
 
     if (errno == EAGAIN || errno == EINPROGRESS)
     {
-        echo("DEBUG: check connection later");
+        // puts("DEBUG: check connection later");
         return true;
     }
 
-    echo("failed to connect");
-    if (close(conn->sockfd) == -1) echo_errno("failed to close socket: ");
+    puts("failed to connect");
+    if (close(conn->sockfd) == -1) perror("failed to close socket: ");
     return false;
 }
 
@@ -94,12 +95,12 @@ void conn_check_connection(struct conn *conn)
     socklen_t len = sizeof(err);
     if (getsockopt(conn->sockfd, SOL_SOCKET, SO_ERROR, &err, &len) == -1)
     {
-        echo("failed to check socket for connection");
+        puts("failed to check socket for connection");
         conn->state = CONN_FAIL;
     }
     if (err)
     {
-        echo("failed to connect");
+        puts("failed to connect");
         conn->state = CONN_FAIL;
         return;
     }
@@ -120,5 +121,12 @@ void conn_check_connection(struct conn *conn)
 
 void conn_close(struct conn *conn)
 {
-    if (close(conn->sockfd) == -1) echo_errno("failed to close socket: ");
+    puts("conn_close");
+    if (shutdown(conn->sockfd, SHUT_WR))
+        perror("failed to wr-shutdown socket: ");
+    ev_sleep(1);
+    if (shutdown(conn->sockfd, SHUT_RD))
+        perror("failed to rd-shutdown socket: ");
+    ev_sleep(1);
+    if (close(conn->sockfd) == -1) perror("failed to close socket: ");
 }

@@ -21,7 +21,7 @@ struct conn
 };
 
 bool conn_init(struct conn *conn);
-bool conn_start_connecting(struct conn *conn);
+bool conn_connect(struct conn *conn);
 void conn_check_connection(struct conn *conn);
 void conn_close(struct conn *conn);
 

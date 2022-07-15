@@ -102,6 +102,7 @@ static void connect_timeout_callback(EV_P_ ev_timer *w, int revents)
     terminate();
 }
 
+#if 0
 int main(void)
 {
     // ptr = big;
@@ -136,3 +137,4 @@ int main(void)
 
     return 0;
 }
+#endif
