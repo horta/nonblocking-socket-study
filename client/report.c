@@ -13,7 +13,7 @@ void die(char const *fmt, ...)
     va_list params;
     va_start(params, fmt);
 
-    fprintf(stdout, TSTEMP_FMT, global_now());
+    fprintf(stderr, TSTEMP_FMT, global_now());
     fprintf(stderr, "%s:", "FATAL");
     vfprintf(stderr, fmt, params);
     fputc('\n', stderr);
@@ -44,6 +44,7 @@ void echo_errno(char const *fmt, ...)
     fprintf(stderr, TSTEMP_FMT, global_now());
     vfprintf(stderr, fmt, params);
     fputs(err_msg, stderr);
+    fputc('\n', stderr);
 
     va_end(params);
 }

@@ -5,6 +5,7 @@
 #include "report.h"
 #include "socket_include.h"
 #include "strings.h"
+#include "term.h"
 #include <errno.h>
 #include <ev.h>
 #include <stdbool.h>
@@ -103,11 +104,17 @@ static void connect_timeout_callback(EV_P_ ev_timer *w, int revents)
 
 int main(void)
 {
-    ptr = big;
-    end = ptr + strlen(big);
+    // ptr = big;
+    // end = ptr + strlen(big);
 
     global_init();
+    term_init();
     struct ev_loop *loop = global_loop();
+
+    ev_run(loop, 0);
+    term_cleanup();
+
+    return 0;
 
     if (!conn_init(&conn)) return 1;
 
